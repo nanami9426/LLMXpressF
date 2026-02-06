@@ -1,5 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
-const WS_BASE = import.meta.env.VITE_WS_BASE || 'ws://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000'
+const WS_BASE = import.meta.env.VITE_WS_BASE || 'ws://localhost:5000'
 
 function joinUrl(base, path) {
   if (base.endsWith('/') && path.startsWith('/')) {
@@ -21,18 +21,42 @@ async function request(path, { method = 'GET', body, headers } = {}) {
     body: body ? JSON.stringify(body) : undefined
   })
 
-  const data = await res.json().catch(() => ({}))
+  const payload = await res.json().catch(() => ({}))
+
+  const buildError = (source, status) => {
+    const errInfo = source?.error || {}
+    const err = new Error(
+      errInfo.message || source?.message || '请求失败'
+    )
+    err.code = errInfo.code ?? source?.stat_code ?? status
+    if (errInfo.type || source?.stat) {
+      err.type = errInfo.type || source?.stat
+    }
+    if (errInfo.details || source?.err) {
+      err.details = errInfo.details || source?.err
+    }
+    if (status) {
+      err.status = status
+    }
+    return err
+  }
+
   if (!res.ok) {
-    const err = new Error(data?.message || '网络错误')
-    err.code = data?.stat_code || res.status
-    throw err
+    throw buildError(payload, res.status)
   }
-  if (typeof data.stat_code === 'number' && data.stat_code !== 0) {
-    const err = new Error(data.message || '请求失败')
-    err.code = data.stat_code
-    throw err
+
+  if (payload && typeof payload.success === 'boolean') {
+    if (!payload.success) {
+      throw buildError(payload, res.status)
+    }
+    return payload.data
   }
-  return data
+
+  if (typeof payload.stat_code === 'number' && payload.stat_code !== 0) {
+    throw buildError(payload, res.status)
+  }
+
+  return payload
 }
 
 export async function loginApi(payload) {
@@ -41,9 +65,9 @@ export async function loginApi(payload) {
     body: payload
   })
   return {
-    token: data.token,
-    userId: data.user_id,
-    version: data.version
+    token: data?.token,
+    userId: data?.user_id,
+    version: data?.version
   }
 }
 
@@ -52,7 +76,10 @@ export async function userListApi() {
     method: 'POST',
     body: {}
   })
-  return data.data || []
+  if (Array.isArray(data)) {
+    return data
+  }
+  return data?.data || []
 }
 
 export async function checkTokenApi(token) {

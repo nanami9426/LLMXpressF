@@ -57,7 +57,7 @@ export async function validateToken() {
     await checkTokenApi(token)
     return true
   } catch (err) {
-    if (err?.code === 1002) {
+    if (String(err?.code) === '1002') {
       emitToast('登录已过期，请重新登录。')
     } else {
       emitToast(err?.message || '登录状态失效，请重新登录。')
