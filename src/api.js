@@ -90,12 +90,31 @@ export async function checkTokenApi(token) {
   return data
 }
 
-export function buildWsUrl(token) {
-  const url = new URL(joinUrl(WS_BASE, '/chat/send_message'))
-  if (token) {
-    url.searchParams.set('token', token)
+export function buildWsUrl() {
+  return joinUrl(WS_BASE, '/chat/send_message')
+}
+
+function toBase64Url(value) {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function isWsProtocolTokenSafe(value) {
+  return /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(value)
+}
+
+export function buildWsProtocols(token) {
+  if (!token) return []
+  // Browser WebSocket API cannot set Authorization directly.
+  // Pass bearer token via Sec-WebSocket-Protocol for server-side validation.
+  if (isWsProtocolTokenSafe(token)) {
+    return [`authorization.bearer.${token}`]
   }
-  return url.toString()
+  return [`authorization.bearer.b64.${toBase64Url(token)}`]
 }
 
 export { API_BASE, WS_BASE }

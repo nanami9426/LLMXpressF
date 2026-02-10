@@ -58,7 +58,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { buildWsUrl } from '../api'
+import { buildWsProtocols, buildWsUrl } from '../api'
 import { getToken, getUserId, validateToken } from '../auth'
 
 const listRef = ref(null)
@@ -124,14 +124,24 @@ const connect = async () => {
   }
 
   status.value = 'connecting'
-  const ws = new WebSocket(buildWsUrl(token))
+  const protocols = buildWsProtocols(token)
+  const ws = protocols.length > 0
+    ? new WebSocket(buildWsUrl(), protocols)
+    : new WebSocket(buildWsUrl())
   wsRef.value = ws
+  let opened = false
 
   ws.onopen = () => {
+    opened = true
     status.value = 'connected'
   }
 
-  ws.onclose = () => {
+  ws.onclose = (evt) => {
+    if (!opened && protocols.length > 0) {
+      status.value = 'error'
+      error.value = `WebSocket 握手被拒绝（code: ${evt.code}）。后端需要支持 Sec-WebSocket-Protocol 鉴权。`
+      return
+    }
     if (status.value !== 'error') {
       status.value = 'disconnected'
     }
