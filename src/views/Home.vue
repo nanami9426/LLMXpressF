@@ -2,19 +2,17 @@
   <section class="page">
     <div class="hero">
       <div class="hero-text">
-        <p class="eyebrow">欢迎来到 IMGO</p>
-        <h1 class="title">一个专注于交流效率的轻量聊天室</h1>
-        <p class="lead">
-          主页对所有人可见。登录后可进入私聊和 LLM 聊天，两种场景互不影响。
-        </p>
+        <p class="eyebrow">LLMXpress</p>
+        <h1 class="title">高性能 LLM 网关控制台</h1>
+        <p class="lead">简洁界面，专注模型调用与流式调试。</p>
         <div class="hero-actions">
-          <RouterLink to="/chat" class="btn">进入私聊</RouterLink>
-          <RouterLink to="/llm" class="btn ghost">LLM 聊天</RouterLink>
-          <RouterLink v-if="!authed" to="/login" class="btn ghost">去登录</RouterLink>
+          <RouterLink v-if="authed" to="/console" class="btn">进入控制台</RouterLink>
+          <RouterLink v-else to="/login" class="btn">登录</RouterLink>
+          <RouterLink to="/console" class="btn ghost">网关会话</RouterLink>
         </div>
       </div>
       <div class="hero-card">
-        <div class="card-header">状态面板</div>
+        <div class="card-header">运行状态</div>
         <div class="card-body">
           <div class="status-row">
             <span>登录状态</span>
@@ -32,25 +30,19 @@
             <span>用户ID</span>
             <strong>#{{ userId || '-' }}</strong>
           </div>
-          <div class="status-foot">
-            你可以随时从右上角登录或退出。
-          </div>
+          <div class="status-foot">右上角可切换登录状态。</div>
         </div>
       </div>
     </div>
 
     <div class="grid">
       <div class="panel">
-        <h3>轻量但有序</h3>
-        <p>页面结构干净，信息层级明确，适合快速沟通与记录。</p>
+        <h3>OpenAI 兼容</h3>
+        <p>统一访问 `/v1/models` 与 `/v1/chat/completions`。</p>
       </div>
       <div class="panel">
-        <h3>登录后解锁</h3>
-        <p>私聊与 LLM 聊天都需要登录，保障会话权限与安全。</p>
-      </div>
-      <div class="panel">
-        <h3>随时可扩展</h3>
-        <p>前端已预留清晰结构，后续可接入后端 API。</p>
+        <h3>流式响应</h3>
+        <p>支持流式输出与会话上下文调试。</p>
       </div>
     </div>
   </section>
@@ -76,13 +68,13 @@ const refreshAuth = async () => {
 }
 
 onMounted(() => {
-  window.addEventListener('imgo-auth', refreshAuth)
+  window.addEventListener('llmxpress-auth', refreshAuth)
   window.addEventListener('storage', refreshAuth)
   refreshAuth()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('imgo-auth', refreshAuth)
+  window.removeEventListener('llmxpress-auth', refreshAuth)
   window.removeEventListener('storage', refreshAuth)
 })
 </script>

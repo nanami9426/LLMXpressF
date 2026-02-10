@@ -17,8 +17,9 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/llm',
-      name: 'llm',
+      path: '/console',
+      alias: '/llm',
+      name: 'console',
       component: LlmChat,
       meta: { requiresAuth: true }
     },

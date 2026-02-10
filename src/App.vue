@@ -3,16 +3,16 @@
     <div v-if="toast.visible" class="toast">{{ toast.message }}</div>
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark">IM</div>
+        <div class="brand-mark">LX</div>
         <div>
-          <p class="brand-title">IMGO</p>
-          <p class="brand-sub">轻量聊天室 · Vue3</p>
+          <p class="brand-title">LLMXpress</p>
+          <p class="brand-sub">LLM Gateway</p>
         </div>
       </div>
       <nav class="nav">
         <RouterLink to="/" class="nav-link">主页</RouterLink>
         <RouterLink to="/chat" class="nav-link">私聊</RouterLink>
-        <RouterLink to="/llm" class="nav-link">LLM</RouterLink>
+        <RouterLink to="/console" class="nav-link">控制台</RouterLink>
       </nav>
       <div class="auth">
         <template v-if="authed">
@@ -87,9 +87,9 @@ const handleLogout = () => {
 }
 
 onMounted(() => {
-  window.addEventListener('imgo-auth', refreshAuth)
+  window.addEventListener('llmxpress-auth', refreshAuth)
   window.addEventListener('storage', refreshAuth)
-  window.addEventListener('imgo-toast', handleToast)
+  window.addEventListener('llmxpress-toast', handleToast)
   refreshAuth()
   expiryTimer = window.setInterval(() => {
     refreshAuth()
@@ -97,9 +97,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('imgo-auth', refreshAuth)
+  window.removeEventListener('llmxpress-auth', refreshAuth)
   window.removeEventListener('storage', refreshAuth)
-  window.removeEventListener('imgo-toast', handleToast)
+  window.removeEventListener('llmxpress-toast', handleToast)
   if (expiryTimer) {
     window.clearInterval(expiryTimer)
   }

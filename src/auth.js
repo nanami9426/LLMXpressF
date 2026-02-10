@@ -1,13 +1,13 @@
 import { checkTokenApi } from './api'
 
-const TOKEN_KEY = 'imgo_token'
-const USER_KEY = 'imgo_user'
-const USER_ID_KEY = 'imgo_user_id'
-const VERSION_KEY = 'imgo_token_version'
+const TOKEN_KEY = 'llmxpress_token'
+const USER_KEY = 'llmxpress_user'
+const USER_ID_KEY = 'llmxpress_user_id'
+const VERSION_KEY = 'llmxpress_token_version'
 
 const emitToast = (message) => {
   if (!message) return
-  window.dispatchEvent(new CustomEvent('imgo-toast', { detail: { message } }))
+  window.dispatchEvent(new CustomEvent('llmxpress-toast', { detail: { message } }))
 }
 
 export function hasToken() {
@@ -22,7 +22,7 @@ export function saveAuth({ token, userId, email, version, user }) {
   if (version !== undefined) {
     localStorage.setItem(VERSION_KEY, String(version))
   }
-  window.dispatchEvent(new Event('imgo-auth'))
+  window.dispatchEvent(new Event('llmxpress-auth'))
 }
 
 export function logout() {
@@ -30,7 +30,7 @@ export function logout() {
   localStorage.removeItem(USER_KEY)
   localStorage.removeItem(USER_ID_KEY)
   localStorage.removeItem(VERSION_KEY)
-  window.dispatchEvent(new Event('imgo-auth'))
+  window.dispatchEvent(new Event('llmxpress-auth'))
 }
 
 export function getUser() {

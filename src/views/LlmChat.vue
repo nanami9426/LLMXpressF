@@ -3,8 +3,8 @@
     <div class="chat llm-chat">
       <div class="chat-header llm-header">
         <div class="llm-title">
-          <h2>LLM 聊天</h2>
-          <p class="muted">通过 vLLM 网关调用 `/v1/chat/completions`</p>
+          <h2>LLMXpress 控制台</h2>
+          <p class="muted">`/v1/chat/completions`</p>
         </div>
         <div class="chat-actions">
           <button
@@ -43,7 +43,7 @@
       </div>
 
       <label class="field">
-        <span>System Prompt（可选）</span>
+        <span>System Prompt</span>
         <textarea
           v-model.trim="systemPrompt"
           rows="2"
@@ -56,14 +56,14 @@
         <div class="status" :class="isGenerating ? 'connecting' : 'connected'">
           {{ isGenerating ? '生成中...' : '就绪' }}
         </div>
-        <p class="muted">会话消息：{{ messages.length }}</p>
+        <p class="muted">消息数：{{ messages.length }}</p>
       </div>
 
       <p v-if="error" class="error">{{ error }}</p>
 
       <div class="chat-body llm-body" ref="listRef">
         <p v-if="messages.length === 0" class="muted empty-chat">
-          先输入一条消息开始对话。
+          输入消息开始测试。
         </p>
         <div
           v-for="item in messages"
@@ -83,7 +83,7 @@
         <textarea
           v-model.trim="input"
           rows="3"
-          placeholder="输入消息，按 Enter 发送，Shift + Enter 换行"
+          placeholder="输入消息，Enter 发送，Shift + Enter 换行"
           @keydown.enter.exact.prevent="sendMessage"
         />
         <div class="chat-input-actions">
@@ -350,12 +350,12 @@ const refreshAuth = () => {
 }
 
 onMounted(() => {
-  window.addEventListener('imgo-auth', refreshAuth)
+  window.addEventListener('llmxpress-auth', refreshAuth)
   reloadModels()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('imgo-auth', refreshAuth)
+  window.removeEventListener('llmxpress-auth', refreshAuth)
   stopGeneration()
 })
 </script>

@@ -202,12 +202,12 @@ const refreshAuth = () => {
 }
 
 onMounted(() => {
-  window.addEventListener('imgo-auth', refreshAuth)
+  window.addEventListener('llmxpress-auth', refreshAuth)
   connect()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('imgo-auth', refreshAuth)
+  window.removeEventListener('llmxpress-auth', refreshAuth)
   if (wsRef.value) {
     wsRef.value.close()
   }
