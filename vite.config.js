@@ -15,8 +15,8 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true
       },
-      '/chat': {
-        target: 'ws://localhost:5000',
+      '/chat/send_message': {
+        target: 'http://localhost:5000',
         ws: true,
         changeOrigin: true
       }

@@ -75,7 +75,7 @@
             <span>{{ roleLabel(item.role) }}</span>
             <span>{{ item.time }}</span>
           </div>
-          <p>{{ item.content || (item.pending ? '思考中...' : '') }}</p>
+          <p>{{ item.content || (item.pending ? '生成中...' : '') }}</p>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   chatCompletionApi,
   chatCompletionStreamApi,
@@ -285,13 +285,13 @@ const sendMessage = async () => {
   input.value = ''
 
   const apiMessages = buildRequestMessages()
-  const assistantMessage = {
+  const assistantMessage = reactive({
     id: Date.now() + Math.random(),
     role: 'assistant',
     content: '',
     pending: true,
     time: formatTime()
-  }
+  })
   await appendMessage(assistantMessage)
 
   try {
