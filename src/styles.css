@@ -306,15 +306,20 @@ body {
   font-size: 14px;
 }
 
-input {
+input,
+select,
+textarea {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
   font-size: 15px;
   font-family: 'Space Grotesk', 'PingFang SC', sans-serif;
+  background: white;
 }
 
-input:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: 2px solid rgba(42, 157, 143, 0.3);
   border-color: rgba(42, 157, 143, 0.5);
 }
@@ -370,6 +375,21 @@ input:focus {
   gap: 12px;
 }
 
+.llm-header {
+  align-items: flex-start;
+}
+
+.llm-title {
+  display: grid;
+  gap: 4px;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .status {
   padding: 6px 12px;
   border-radius: 999px;
@@ -407,12 +427,29 @@ input:focus {
   font-size: 13px;
 }
 
-.badge {
-  background: rgba(232, 111, 36, 0.12);
-  color: var(--accent);
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
+.llm-controls label {
+  min-width: 220px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+}
+
+.toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.status-row-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .chat-body {
@@ -422,6 +459,21 @@ input:focus {
   display: grid;
   gap: 12px;
   padding-right: 6px;
+}
+
+.llm-body {
+  min-height: 420px;
+  max-height: 56vh;
+  background: linear-gradient(180deg, rgba(247, 244, 239, 0.35), rgba(255, 255, 255, 0.5));
+  border: 1px solid rgba(31, 31, 31, 0.05);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.empty-chat {
+  text-align: center;
+  align-self: center;
+  padding: 18px 0;
 }
 
 .bubble {
@@ -439,6 +491,26 @@ input:focus {
   background: rgba(42, 157, 143, 0.15);
 }
 
+.llm-bubble {
+  max-width: 92%;
+  border: 1px solid rgba(31, 31, 31, 0.06);
+}
+
+.llm-bubble.role-user {
+  margin-left: auto;
+  background: rgba(42, 157, 143, 0.14);
+}
+
+.llm-bubble.role-assistant {
+  margin-right: auto;
+  background: rgba(247, 244, 239, 0.9);
+}
+
+.llm-bubble.role-system {
+  margin: 0 auto;
+  background: rgba(232, 111, 36, 0.14);
+}
+
 .bubble .meta {
   display: flex;
   gap: 10px;
@@ -454,6 +526,23 @@ input:focus {
 
 .chat-input input {
   flex: 1;
+}
+
+.llm-input {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.llm-input textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.chat-input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 @keyframes fadeIn {
@@ -505,11 +594,34 @@ input:focus {
     align-items: flex-start;
   }
 
+  .chat-actions {
+    width: 100%;
+  }
+
   .chat-controls {
     width: 100%;
   }
 
+  .llm-controls label {
+    min-width: 100%;
+  }
+
+  .status-row-inline {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .chat-body {
     max-height: 320px;
+  }
+
+  .llm-body {
+    min-height: 340px;
+    max-height: 52vh;
+  }
+
+  .chat-input-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }

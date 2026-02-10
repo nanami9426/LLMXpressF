@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000'
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 const WS_BASE = import.meta.env.VITE_WS_BASE || 'ws://localhost:5000'
 
 function joinUrl(base, path) {
@@ -59,6 +59,21 @@ async function request(path, { method = 'GET', body, headers } = {}) {
   return payload
 }
 
+function requireToken(token) {
+  if (token) return token
+  const err = new Error('缺少登录令牌，请先登录。')
+  err.status = 401
+  err.code = 401
+  throw err
+}
+
+function withBearerToken(token, headers = {}) {
+  return {
+    ...headers,
+    Authorization: `Bearer ${requireToken(token)}`
+  }
+}
+
 export async function loginApi(payload) {
   const data = await request('/user/user_login', {
     method: 'POST',
@@ -88,6 +103,150 @@ export async function checkTokenApi(token) {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined
   })
   return data
+}
+
+export async function listModelsApi(token) {
+  const payload = await request('/v1/models', {
+    method: 'GET',
+    headers: withBearerToken(token)
+  })
+  if (Array.isArray(payload?.data)) {
+    return payload.data
+  }
+  if (Array.isArray(payload)) {
+    return payload
+  }
+  return []
+}
+
+export async function chatCompletionApi({
+  token,
+  model,
+  messages,
+  temperature,
+  max_tokens
+}) {
+  return request('/v1/chat/completions', {
+    method: 'POST',
+    headers: withBearerToken(token),
+    body: {
+      model,
+      messages,
+      temperature,
+      max_tokens
+    }
+  })
+}
+
+function getDeltaText(payload) {
+  const choice = payload?.choices?.[0]
+  if (!choice) return ''
+  if (typeof choice?.delta?.content === 'string') {
+    return choice.delta.content
+  }
+  if (Array.isArray(choice?.delta?.content)) {
+    return choice.delta.content
+      .map((item) => (typeof item?.text === 'string' ? item.text : ''))
+      .join('')
+  }
+  if (typeof choice?.text === 'string') {
+    return choice.text
+  }
+  return ''
+}
+
+function parseSseData(eventBlock) {
+  const lines = eventBlock.split('\n')
+  const chunks = []
+  lines.forEach((line) => {
+    if (line.startsWith('data:')) {
+      chunks.push(line.slice(5).trimStart())
+    }
+  })
+  return chunks.join('\n')
+}
+
+export async function chatCompletionStreamApi({
+  token,
+  model,
+  messages,
+  temperature,
+  max_tokens,
+  signal,
+  onDelta
+}) {
+  const res = await fetch(joinUrl(API_BASE, '/v1/chat/completions'), {
+    method: 'POST',
+    headers: withBearerToken(token, {
+      'Content-Type': 'application/json'
+    }),
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      max_tokens,
+      stream: true
+    }),
+    signal
+  })
+
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}))
+    const info = payload?.error || {}
+    const err = new Error(info.message || payload?.message || '请求失败')
+    err.status = res.status
+    err.code = info.code ?? res.status
+    throw err
+  }
+
+  if (!res.body) {
+    return { text: '' }
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let text = ''
+  const processEvent = (event) => {
+    const data = parseSseData(event)
+    if (!data || data === '[DONE]') {
+      return data === '[DONE]'
+    }
+
+    try {
+      const payload = JSON.parse(data)
+      const delta = getDeltaText(payload)
+      if (delta) {
+        text += delta
+        onDelta?.(delta, payload)
+      }
+    } catch {
+      // Ignore malformed chunks and continue reading.
+    }
+    return false
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    buffer = buffer.replace(/\r\n/g, '\n')
+
+    const events = buffer.split('\n\n')
+    buffer = events.pop() || ''
+
+    for (const event of events) {
+      if (processEvent(event)) {
+        return { text }
+      }
+    }
+  }
+
+  if (buffer.trim()) {
+    processEvent(buffer)
+  }
+
+  return { text }
 }
 
 export function buildWsUrl() {

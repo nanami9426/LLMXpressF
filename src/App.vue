@@ -11,7 +11,8 @@
       </div>
       <nav class="nav">
         <RouterLink to="/" class="nav-link">主页</RouterLink>
-        <RouterLink to="/chat" class="nav-link">聊天</RouterLink>
+        <RouterLink to="/chat" class="nav-link">私聊</RouterLink>
+        <RouterLink to="/llm" class="nav-link">LLM</RouterLink>
       </nav>
       <div class="auth">
         <template v-if="authed">

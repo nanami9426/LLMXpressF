@@ -5,10 +5,11 @@
         <p class="eyebrow">欢迎来到 IMGO</p>
         <h1 class="title">一个专注于交流效率的轻量聊天室</h1>
         <p class="lead">
-          主页对所有人可见。登录后可进入聊天界面，体验实时交流的节奏感。
+          主页对所有人可见。登录后可进入私聊和 LLM 聊天，两种场景互不影响。
         </p>
         <div class="hero-actions">
-          <RouterLink to="/chat" class="btn">进入聊天</RouterLink>
+          <RouterLink to="/chat" class="btn">进入私聊</RouterLink>
+          <RouterLink to="/llm" class="btn ghost">LLM 聊天</RouterLink>
           <RouterLink v-if="!authed" to="/login" class="btn ghost">去登录</RouterLink>
         </div>
       </div>
@@ -45,7 +46,7 @@
       </div>
       <div class="panel">
         <h3>登录后解锁</h3>
-        <p>聊天界面加入权限控制，保护你的会话内容。</p>
+        <p>私聊与 LLM 聊天都需要登录，保障会话权限与安全。</p>
       </div>
       <div class="panel">
         <h3>随时可扩展</h3>

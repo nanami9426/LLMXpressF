@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Chat from '../views/Chat.vue'
+import LlmChat from '../views/LlmChat.vue'
 import { validateToken } from '../auth'
 
 const router = createRouter({
@@ -13,6 +14,12 @@ const router = createRouter({
       path: '/chat',
       name: 'chat',
       component: Chat,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/llm',
+      name: 'llm',
+      component: LlmChat,
       meta: { requiresAuth: true }
     },
     { path: '/:pathMatch(.*)*', redirect: '/' }
