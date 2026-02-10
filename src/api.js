@@ -1,5 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 const WS_BASE = import.meta.env.VITE_WS_BASE || 'ws://localhost:5000'
+const LARGE_INT_KEYS = new Set(['conversation_id', 'message_id'])
 
 function joinUrl(base, path) {
   if (base.endsWith('/') && path.startsWith('/')) {
@@ -11,7 +12,129 @@ function joinUrl(base, path) {
   return base + path
 }
 
-async function request(path, { method = 'GET', body, headers } = {}) {
+const CONVERSATION_HEADER = 'X-Conversation-ID'
+
+function normalizeId(value) {
+  if (value === null || value === undefined) return undefined
+  const raw = String(value).trim()
+  if (!/^\d+$/.test(raw)) return undefined
+  if (/^0+$/.test(raw)) return undefined
+  return raw
+}
+
+function parseConversationId(headers) {
+  return normalizeId(headers?.get?.(CONVERSATION_HEADER))
+}
+
+function isWhitespaceChar(ch) {
+  return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t'
+}
+
+function isDigitChar(ch) {
+  return ch >= '0' && ch <= '9'
+}
+
+function isNumberTokenChar(ch) {
+  return isDigitChar(ch) || ch === '-' || ch === '+' || ch === '.' || ch === 'e' || ch === 'E'
+}
+
+function quoteLargeIntegerValues(raw) {
+  if (!raw || typeof raw !== 'string' || raw.indexOf('"') < 0) {
+    return raw
+  }
+
+  let output = ''
+  let i = 0
+  while (i < raw.length) {
+    const char = raw[i]
+    if (char !== '"') {
+      output += char
+      i += 1
+      continue
+    }
+
+    let j = i + 1
+    let escaped = false
+    while (j < raw.length) {
+      const current = raw[j]
+      if (escaped) {
+        escaped = false
+        j += 1
+        continue
+      }
+      if (current === '\\') {
+        escaped = true
+        j += 1
+        continue
+      }
+      if (current === '"') {
+        break
+      }
+      j += 1
+    }
+
+    if (j >= raw.length) {
+      output += raw.slice(i)
+      break
+    }
+
+    const quotedToken = raw.slice(i, j + 1)
+    output += quotedToken
+
+    let k = j + 1
+    while (k < raw.length && isWhitespaceChar(raw[k])) {
+      output += raw[k]
+      k += 1
+    }
+
+    const keyName = quotedToken.slice(1, -1)
+    if (k < raw.length && raw[k] === ':' && LARGE_INT_KEYS.has(keyName)) {
+      output += ':'
+      k += 1
+
+      while (k < raw.length && isWhitespaceChar(raw[k])) {
+        output += raw[k]
+        k += 1
+      }
+
+      if (k < raw.length && (raw[k] === '-' || isDigitChar(raw[k]))) {
+        const numberStart = k
+        k += 1
+        while (k < raw.length && isNumberTokenChar(raw[k])) {
+          k += 1
+        }
+
+        const numberToken = raw.slice(numberStart, k)
+        const unsignedToken = numberToken.startsWith('-')
+          ? numberToken.slice(1)
+          : numberToken
+        if (/^\d+$/.test(unsignedToken) && unsignedToken.length >= 16) {
+          output += `"${numberToken}"`
+        } else {
+          output += numberToken
+        }
+        i = k
+        continue
+      }
+    }
+
+    i = k
+  }
+
+  return output
+}
+
+function parsePayload(raw) {
+  if (!raw) return {}
+  const normalizedRaw = quoteLargeIntegerValues(raw)
+  try {
+    return JSON.parse(normalizedRaw)
+  } catch {
+    return {}
+  }
+}
+
+async function request(path, { method = 'GET', body, headers, includeHeaders = false } = {}) {
   const res = await fetch(joinUrl(API_BASE, path), {
     method,
     headers: {
@@ -21,7 +144,8 @@ async function request(path, { method = 'GET', body, headers } = {}) {
     body: body ? JSON.stringify(body) : undefined
   })
 
-  const payload = await res.json().catch(() => ({}))
+  const raw = await res.text().catch(() => '')
+  const payload = parsePayload(raw)
 
   const buildError = (source, status) => {
     const errInfo = source?.error || {}
@@ -45,18 +169,27 @@ async function request(path, { method = 'GET', body, headers } = {}) {
     throw buildError(payload, res.status)
   }
 
+  let data = payload
   if (payload && typeof payload.success === 'boolean') {
     if (!payload.success) {
       throw buildError(payload, res.status)
     }
-    return payload.data
+    data = payload.data
   }
 
   if (typeof payload.stat_code === 'number' && payload.stat_code !== 0) {
     throw buildError(payload, res.status)
   }
 
-  return payload
+  if (includeHeaders) {
+    return {
+      data,
+      headers: res.headers,
+      status: res.status
+    }
+  }
+
+  return data
 }
 
 function requireToken(token) {
@@ -119,23 +252,97 @@ export async function listModelsApi(token) {
   return []
 }
 
+function buildChatRequestBody({
+  model,
+  messages,
+  temperature,
+  max_tokens,
+  conversation_id,
+  new_chat,
+  stream
+}) {
+  const body = {
+    model,
+    messages,
+    temperature,
+    max_tokens,
+    stream
+  }
+
+  if (conversation_id !== undefined && conversation_id !== null && conversation_id !== '') {
+    body.conversation_id = conversation_id
+  }
+  if (new_chat) {
+    body.new_chat = true
+  }
+
+  return body
+}
+
 export async function chatCompletionApi({
   token,
   model,
   messages,
   temperature,
-  max_tokens
+  max_tokens,
+  conversation_id,
+  new_chat
 }) {
-  return request('/v1/chat/completions', {
+  const payload = await request('/v1/chat/completions', {
     method: 'POST',
     headers: withBearerToken(token),
-    body: {
+    body: buildChatRequestBody({
       model,
       messages,
       temperature,
-      max_tokens
-    }
+      max_tokens,
+      conversation_id,
+      new_chat,
+      stream: false
+    }),
+    includeHeaders: true
   })
+
+  return {
+    data: payload.data,
+    conversationId: parseConversationId(payload.headers)
+  }
+}
+
+export async function listConversationsApi(token, { page = 1, pageSize = 20 } = {}) {
+  const payload = await request(`/v1/conversations?page=${page}&page_size=${pageSize}`, {
+    method: 'GET',
+    headers: withBearerToken(token)
+  })
+
+  return {
+    list: Array.isArray(payload?.list) ? payload.list : [],
+    page: payload?.page ?? page,
+    pageSize: payload?.page_size ?? pageSize,
+    total: Number(payload?.total || 0)
+  }
+}
+
+export async function listConversationMessagesApi(
+  token,
+  conversationId,
+  { page = 1, pageSize = 50 } = {}
+) {
+  const payload = await request(
+    `/v1/conversations/${conversationId}/messages?page=${page}&page_size=${pageSize}`,
+    {
+      method: 'GET',
+      headers: withBearerToken(token)
+    }
+  )
+
+  return {
+    conversation: payload?.conversation || null,
+    messages: Array.isArray(payload?.messages) ? payload.messages : [],
+    page: payload?.page ?? page,
+    pageSize: payload?.page_size ?? pageSize,
+    total: Number(payload?.total || 0)
+  }
 }
 
 function getDeltaText(payload) {
@@ -216,12 +423,31 @@ function parseStreamPayloads(eventBlock) {
   }))
 }
 
+function buildStreamError(payload, status) {
+  const info = payload?.error || {}
+  const err = new Error(info.message || payload?.message || '请求失败')
+  err.status = status
+  err.code = info.code ?? status
+  return err
+}
+
+function parseStreamErrorRaw(raw) {
+  if (!raw) return {}
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return { message: raw }
+  }
+}
+
 export async function chatCompletionStreamApi({
   token,
   model,
   messages,
   temperature,
   max_tokens,
+  conversation_id,
+  new_chat,
   signal,
   onDelta
 }) {
@@ -232,35 +458,29 @@ export async function chatCompletionStreamApi({
       Accept: 'text/event-stream',
       'Cache-Control': 'no-cache'
     }),
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens,
-      stream: true
-    }),
+    body: JSON.stringify(
+      buildChatRequestBody({
+        model,
+        messages,
+        temperature,
+        max_tokens,
+        conversation_id,
+        new_chat,
+        stream: true
+      })
+    ),
     signal
   })
 
+  const conversationId = parseConversationId(res.headers)
+
   if (!res.ok) {
     const raw = await res.text().catch(() => '')
-    let payload = {}
-    if (raw) {
-      try {
-        payload = JSON.parse(raw)
-      } catch {
-        payload = { message: raw }
-      }
-    }
-    const info = payload?.error || {}
-    const err = new Error(info.message || payload?.message || '请求失败')
-    err.status = res.status
-    err.code = info.code ?? res.status
-    throw err
+    throw buildStreamError(parseStreamErrorRaw(raw), res.status)
   }
 
   if (!res.body) {
-    return { text: '' }
+    return { text: '', conversationId }
   }
 
   const reader = res.body.getReader()
@@ -327,7 +547,7 @@ export async function chatCompletionStreamApi({
 
     for (const event of events) {
       if (processEvent(event)) {
-        return { text }
+        return { text, conversationId }
       }
     }
 
@@ -337,7 +557,7 @@ export async function chatCompletionStreamApi({
       buffer = lines.pop() || ''
       for (const line of lines) {
         if (processEvent(line)) {
-          return { text }
+          return { text, conversationId }
         }
       }
     }
@@ -347,7 +567,7 @@ export async function chatCompletionStreamApi({
     processEvent(buffer)
   }
 
-  return { text }
+  return { text, conversationId }
 }
 
 export function buildWsUrl() {
