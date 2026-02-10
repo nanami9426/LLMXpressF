@@ -710,10 +710,35 @@ textarea {
   font-size: 0.93em;
 }
 
+.message-content .md-code-block,
+.llm-system-text .md-code-block {
+  position: relative;
+}
+
+.message-content .code-copy-btn,
+.llm-system-text .code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #c8d1dc;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #57606a;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.message-content .code-copy-btn:hover,
+.llm-system-text .code-copy-btn:hover {
+  background: #f3f4f6;
+}
+
 .message-content pre.hljs {
   border: 1px solid #d0d7de;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 36px 12px 10px;
   overflow-x: auto;
 }
 

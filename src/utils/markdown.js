@@ -43,20 +43,24 @@ const md = new MarkdownIt({
   typographer: true,
   highlight(code, language) {
     const lang = (language || '').trim().toLowerCase()
+    let highlightedCode = ''
+
     if (lang && hljs.getLanguage(lang)) {
       try {
-        const highlighted = hljs.highlight(code, {
+        highlightedCode = hljs.highlight(code, {
           language: lang,
           ignoreIllegals: true
         }).value
-        return `<pre class="hljs"><code>${highlighted}</code></pre>`
       } catch {
-        // Fallback below.
+        highlightedCode = ''
       }
     }
 
-    const escaped = md.utils.escapeHtml(code)
-    return `<pre class="hljs"><code>${escaped}</code></pre>`
+    if (!highlightedCode) {
+      highlightedCode = md.utils.escapeHtml(code)
+    }
+
+    return highlightedCode
   }
 })
 
@@ -78,6 +82,29 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   token.attrSet('target', '_blank')
   token.attrSet('rel', 'noopener noreferrer')
   return defaultLinkOpen(tokens, idx, options, env, self)
+}
+
+function renderCodeBlock(content, lang = '') {
+  const normalizedLang = (lang || '').trim()
+  const safeLang = md.utils.escapeHtml(normalizedLang)
+  const langClass = safeLang ? ` class="language-${safeLang}"` : ''
+  const highlighted = md.options.highlight
+    ? md.options.highlight(content, normalizedLang)
+    : md.utils.escapeHtml(content)
+  const codeHtml = highlighted || md.utils.escapeHtml(content)
+  return `<div class="md-code-block"><button class="code-copy-btn" type="button">复制</button><pre class="hljs"><code${langClass}>${codeHtml}</code></pre></div>`
+}
+
+md.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx]
+  const info = md.utils.unescapeAll(token.info || '').trim()
+  const lang = info ? info.split(/\s+/g)[0] : ''
+  return renderCodeBlock(token.content, lang)
+}
+
+md.renderer.rules.code_block = (tokens, idx) => {
+  const token = tokens[idx]
+  return renderCodeBlock(token.content || '', '')
 }
 
 const SANITIZE_OPTIONS = {

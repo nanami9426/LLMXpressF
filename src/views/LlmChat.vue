@@ -121,7 +121,7 @@
 
         <p v-if="error" class="error">{{ error }}</p>
 
-        <div class="chat-body llm-body" ref="listRef">
+        <div class="chat-body llm-body" ref="listRef" @click="handleChatBodyClick">
           <p v-if="messages.length === 0" class="muted empty-chat">
             输入消息开始测试。
           </p>
@@ -205,6 +205,7 @@ const loadingConversationId = ref('')
 const activeConversationId = ref(null)
 const currentConversationTitle = ref('')
 const markdownCache = new Map()
+const copyButtonTimers = new WeakMap()
 
 const activeConversationLabel = computed(() => {
   if (!activeConversationId.value) {
@@ -303,6 +304,65 @@ const renderMessageContent = (item) => {
   }
   markdownCache.set(key, html)
   return html
+}
+
+const setCopyButtonLabel = (button, label) => {
+  if (!button) return
+  button.textContent = label
+}
+
+const copyText = async (text) => {
+  if (!text) return false
+
+  if (navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Continue to fallback.
+    }
+  }
+
+  try {
+    const input = document.createElement('textarea')
+    input.value = text
+    input.setAttribute('readonly', 'readonly')
+    input.style.position = 'fixed'
+    input.style.opacity = '0'
+    input.style.pointerEvents = 'none'
+    document.body.appendChild(input)
+    input.select()
+    const copied = document.execCommand('copy')
+    document.body.removeChild(input)
+    return copied
+  } catch {
+    return false
+  }
+}
+
+const handleChatBodyClick = async (event) => {
+  const button = event?.target?.closest?.('.code-copy-btn')
+  if (!button || !listRef.value?.contains(button)) return
+  event.preventDefault()
+
+  const block = button.closest('.md-code-block')
+  const codeEl = block?.querySelector('pre code')
+  const raw = codeEl?.textContent || ''
+  if (!raw) return
+
+  const ok = await copyText(raw)
+  setCopyButtonLabel(button, ok ? '已复制' : '复制失败')
+
+  const previous = copyButtonTimers.get(button)
+  if (previous) {
+    window.clearTimeout(previous)
+  }
+
+  const timer = window.setTimeout(() => {
+    setCopyButtonLabel(button, '复制')
+    copyButtonTimers.delete(button)
+  }, ok ? 1200 : 1800)
+  copyButtonTimers.set(button, timer)
 }
 
 const scrollToBottom = () => {
