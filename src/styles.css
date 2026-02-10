@@ -478,18 +478,22 @@ textarea {
 }
 
 .bubble {
+  width: fit-content;
   max-width: 88%;
+  justify-self: start;
   display: grid;
   gap: 4px;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .bubble.me,
 .llm-bubble.role-user {
-  margin-left: auto;
+  justify-self: end;
   background: #ddf4ff;
   border-color: #96d0ff;
 }
