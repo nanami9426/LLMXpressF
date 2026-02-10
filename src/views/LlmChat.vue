@@ -125,18 +125,26 @@
           <p v-if="messages.length === 0" class="muted empty-chat">
             输入消息开始测试。
           </p>
-          <div
-            v-for="item in messages"
-            :key="item.id"
-            class="bubble llm-bubble"
-            :class="`role-${item.role}`"
-          >
-            <div class="meta">
-              <span>{{ roleLabel(item.role) }}</span>
-              <span>{{ item.time }}</span>
+          <template v-for="item in messages" :key="item.id">
+            <div v-if="item.role === 'system'" class="llm-system-line">
+              <div class="meta">
+                <span>{{ roleLabel(item.role) }}</span>
+                <span>{{ item.time }}</span>
+              </div>
+              <div class="llm-system-text" v-html="renderMessageContent(item)"></div>
             </div>
-            <p>{{ item.content || (item.pending ? '生成中...' : '') }}</p>
-          </div>
+            <div
+              v-else
+              class="bubble llm-bubble"
+              :class="`role-${item.role}`"
+            >
+              <div class="meta">
+                <span>{{ roleLabel(item.role) }}</span>
+                <span>{{ item.time }}</span>
+              </div>
+              <div class="message-content" v-html="renderMessageContent(item)"></div>
+            </div>
+          </template>
         </div>
 
         <form class="chat-input llm-input" @submit.prevent="sendMessage">
@@ -176,6 +184,7 @@ import {
   listModelsApi
 } from '../api'
 import { getToken, validateToken } from '../auth'
+import { renderMarkdown } from '../utils/markdown'
 
 const listRef = ref(null)
 const input = ref('')
@@ -195,6 +204,7 @@ const conversationsLoading = ref(false)
 const loadingConversationId = ref('')
 const activeConversationId = ref(null)
 const currentConversationTitle = ref('')
+const markdownCache = new Map()
 
 const activeConversationLabel = computed(() => {
   if (!activeConversationId.value) {
@@ -278,6 +288,21 @@ const readAssistantMessage = (payload) => {
   }
 
   return ''
+}
+
+const renderMessageContent = (item) => {
+  const source = item?.content || (item?.pending ? '生成中...' : '')
+  const key = `${item?.role || 'unknown'}::${source}`
+  if (markdownCache.has(key)) {
+    return markdownCache.get(key)
+  }
+
+  const html = renderMarkdown(source)
+  if (markdownCache.size > 300) {
+    markdownCache.clear()
+  }
+  markdownCache.set(key, html)
+  return html
 }
 
 const scrollToBottom = () => {
