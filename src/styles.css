@@ -536,6 +536,59 @@ textarea {
   margin: 0;
 }
 
+.system-panel {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.system-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.system-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.system-pill.ok {
+  color: var(--success);
+  border-color: rgba(26, 127, 55, 0.35);
+  background: rgba(26, 127, 55, 0.08);
+}
+
+.system-pill.warn {
+  color: var(--warning);
+  border-color: rgba(154, 103, 0, 0.35);
+  background: rgba(154, 103, 0, 0.08);
+}
+
+.system-panel-tip {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.btn.tiny {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
 .status-row-inline {
   display: flex;
   align-items: center;

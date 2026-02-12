@@ -110,6 +110,27 @@
             :disabled="isGenerating"
           />
         </label>
+        <div class="system-panel">
+          <div class="system-panel-head">
+            <span class="system-pill">{{ activeConversationId ? '续聊模式' : '新会话模式' }}</span>
+            <span
+              class="system-pill"
+              :class="shouldSendSystemOverride ? 'warn' : 'ok'"
+            >
+              {{ shouldSendSystemOverride ? '本轮发送 system + user' : '本轮仅发送 user' }}
+            </span>
+            <button
+              v-if="activeConversationId && shouldSendSystemOverride"
+              class="btn ghost tiny"
+              type="button"
+              :disabled="isGenerating"
+              @click="resetSystemPromptToConversation"
+            >
+              恢复历史 system
+            </button>
+          </div>
+          <p class="system-panel-tip">{{ systemRuleHint }}</p>
+        </div>
 
         <div class="status-row-inline">
           <div class="status" :class="isGenerating ? 'connecting' : 'connected'">
@@ -204,6 +225,7 @@ const conversationsLoading = ref(false)
 const loadingConversationId = ref('')
 const activeConversationId = ref(null)
 const currentConversationTitle = ref('')
+const conversationSystemPrompt = ref('')
 const markdownCache = new Map()
 const copyButtonTimers = new WeakMap()
 
@@ -213,6 +235,30 @@ const activeConversationLabel = computed(() => {
   }
   const title = currentConversationTitle.value ? ` · ${currentConversationTitle.value}` : ''
   return `会话：#${activeConversationId.value}${title}`
+})
+
+const shouldSendSystemOverride = computed(() => {
+  const draft = systemPrompt.value.trim()
+  if (!activeConversationId.value) {
+    return Boolean(draft)
+  }
+
+  const current = conversationSystemPrompt.value.trim()
+  return Boolean(draft) && draft !== current
+})
+
+const systemRuleHint = computed(() => {
+  if (!activeConversationId.value) {
+    return shouldSendSystemOverride.value
+      ? '首轮会发送 system + user，后端将把 system 固定为该会话第 1 条。'
+      : '首轮仅发送 user，后端不会创建 system 消息。'
+  }
+
+  if (shouldSendSystemOverride.value) {
+    return '本轮将发送 system + user，后端会直接覆盖该会话旧 system。'
+  }
+
+  return '本轮只发送 user，沿用会话当前 system（不会重复追加）。'
 })
 
 const canSubmit = computed(() => {
@@ -291,6 +337,13 @@ const readAssistantMessage = (payload) => {
   return ''
 }
 
+const resolveSystemPromptFromMessages = (messageList = []) => {
+  const systemItem = messageList.find((item) => item?.role === 'system')
+  if (!systemItem) return ''
+  const content = normalizeText(systemItem.content)
+  return String(content || '').trim()
+}
+
 const renderMessageContent = (item) => {
   const source = item?.content || (item?.pending ? '生成中...' : '')
   const key = `${item?.role || 'unknown'}::${source}`
@@ -304,6 +357,38 @@ const renderMessageContent = (item) => {
   }
   markdownCache.set(key, html)
   return html
+}
+
+const resetSystemPromptToConversation = () => {
+  systemPrompt.value = conversationSystemPrompt.value || ''
+}
+
+const upsertSystemMessage = (content) => {
+  const nextContent = String(content || '').trim()
+  if (!nextContent) return
+
+  const index = messages.value.findIndex((item) => item?.role === 'system')
+  if (index === -1) {
+    messages.value.unshift({
+      id: Date.now() + Math.random(),
+      role: 'system',
+      content: nextContent,
+      time: formatTime()
+    })
+    return
+  }
+
+  const existing = messages.value[index]
+  const updated = {
+    ...existing,
+    content: nextContent,
+    time: formatTime()
+  }
+  messages.value.splice(index, 1, updated)
+  if (index > 0) {
+    const [item] = messages.value.splice(index, 1)
+    messages.value.unshift(item)
+  }
 }
 
 const setCopyButtonLabel = (button, label) => {
@@ -486,6 +571,7 @@ const reloadConversations = async ({ silent = false } = {}) => {
       if (!exists) {
         activeConversationId.value = null
         currentConversationTitle.value = ''
+        conversationSystemPrompt.value = ''
       } else {
         syncConversationTitle()
       }
@@ -524,12 +610,17 @@ const openConversation = async (conversationId) => {
     currentConversationTitle.value = conversationTitle(payload.conversation || { conversation_id: targetId })
     applyModelFromConversation(payload?.conversation?.model)
 
-    messages.value = payload.messages.map((item) => ({
+    const loadedMessages = payload.messages.map((item) => ({
       id: item?.message_id || Date.now() + Math.random(),
       role: item?.role || 'assistant',
       content: item?.content || '',
       time: formatTime(item?.created_at)
     }))
+    messages.value = loadedMessages
+
+    const existingSystem = resolveSystemPromptFromMessages(loadedMessages)
+    conversationSystemPrompt.value = existingSystem
+    systemPrompt.value = existingSystem
 
     await nextTick()
     scrollToBottom()
@@ -545,6 +636,7 @@ const startNewConversation = () => {
   error.value = ''
   activeConversationId.value = null
   currentConversationTitle.value = ''
+  conversationSystemPrompt.value = ''
   messages.value = []
 }
 
@@ -553,17 +645,27 @@ const stopGeneration = () => {
 }
 
 const buildRequestMessages = (prompt) => {
-  const payload = []
-  if (systemPrompt.value) {
-    payload.push({
-      role: 'system',
-      content: systemPrompt.value
-    })
-  }
+  const draftSystem = systemPrompt.value.trim()
 
   if (activeConversationId.value) {
-    payload.push({ role: 'user', content: prompt })
-    return payload
+    if (shouldSendSystemOverride.value) {
+      return [
+        { role: 'system', content: draftSystem },
+        { role: 'user', content: prompt }
+      ]
+    }
+
+    // Continue mode: send only current user message by default.
+    // Gateway appends stored history and keeps system at index 0.
+    return [{ role: 'user', content: prompt }]
+  }
+
+  const payload = []
+  if (draftSystem) {
+    payload.push({
+      role: 'system',
+      content: draftSystem
+    })
   }
 
   messages.value.forEach((item) => {
@@ -604,6 +706,9 @@ const sendMessage = async () => {
   input.value = ''
 
   const apiMessages = buildRequestMessages(prompt)
+  const nextSystemFromRequest = apiMessages[0]?.role === 'system'
+    ? String(apiMessages[0]?.content || '').trim()
+    : ''
   const assistantMessage = reactive({
     id: Date.now() + Math.random(),
     role: 'assistant',
@@ -664,6 +769,10 @@ const sendMessage = async () => {
     if (nextConversationId) {
       activeConversationId.value = nextConversationId
       syncConversationTitle()
+      if (nextSystemFromRequest) {
+        conversationSystemPrompt.value = nextSystemFromRequest
+        upsertSystemMessage(nextSystemFromRequest)
+      }
     }
   } catch (err) {
     assistantMessage.pending = false
