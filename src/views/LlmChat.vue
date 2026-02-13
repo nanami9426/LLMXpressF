@@ -95,6 +95,17 @@
               </option>
             </select>
           </label>
+          <label>
+            <span>max_tokens</span>
+            <input
+              v-model.number="maxTokens"
+              type="number"
+              min="1"
+              max="8192"
+              step="1"
+              :disabled="isGenerating"
+            />
+          </label>
           <label class="toggle">
             <input v-model="streamEnabled" type="checkbox" :disabled="isGenerating" />
             <span>流式输出</span>
@@ -207,16 +218,24 @@ import {
 import { getToken, validateToken } from '../auth'
 import { renderMarkdown } from '../utils/markdown'
 
+const DEFAULT_MAX_TOKENS = 1024
+const MAX_TOKENS_MIN = 1
+const MAX_TOKENS_MAX = 8192
+const SEND_THROTTLE_MS = 600
+const RATE_LIMIT_CODE = '1006'
+
 const listRef = ref(null)
 const input = ref('')
 const systemPrompt = ref('You are a helpful assistant.')
 const error = ref('')
 const streamEnabled = ref(true)
+const maxTokens = ref(DEFAULT_MAX_TOKENS)
 const models = ref([])
 const selectedModel = ref('')
 const loadingModels = ref(false)
 const isGenerating = ref(false)
 const abortRef = ref(null)
+const lastSubmitAt = ref(0)
 
 const messages = ref([])
 const conversations = ref([])
@@ -263,6 +282,18 @@ const systemRuleHint = computed(() => {
 
 const canSubmit = computed(() => {
   return Boolean(input.value.trim()) && Boolean(selectedModel.value) && !isGenerating.value
+})
+
+const normalizedMaxTokens = computed(() => {
+  const parsed = Number(maxTokens.value)
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_MAX_TOKENS
+  }
+
+  const value = Math.trunc(parsed)
+  if (value < MAX_TOKENS_MIN) return MAX_TOKENS_MIN
+  if (value > MAX_TOKENS_MAX) return MAX_TOKENS_MAX
+  return value
 })
 
 const normalizeConversationId = (value) => {
@@ -335,6 +366,43 @@ const readAssistantMessage = (payload) => {
   }
 
   return ''
+}
+
+const parseRateLimitDimension = (details) => {
+  if (!details) return ''
+
+  if (typeof details === 'string') {
+    const match = details.match(/dimension\s*=\s*(request|token)/i)
+    if (match?.[1]) {
+      return match[1].toLowerCase()
+    }
+    return ''
+  }
+
+  const dimension = String(details?.dimension || '').trim().toLowerCase()
+  if (dimension === 'request' || dimension === 'token') {
+    return dimension
+  }
+  return ''
+}
+
+const resolveChatErrorMessage = (err) => {
+  const status = Number(err?.status)
+  const code = String(err?.code || '')
+  const type = String(err?.type || '').toLowerCase()
+  const isRateLimit = status === 429 || code === RATE_LIMIT_CODE || type === 'rate_limit_error'
+  if (!isRateLimit) {
+    return err?.message || '请求失败'
+  }
+
+  const dimension = parseRateLimitDimension(err?.details)
+  if (dimension === 'request') {
+    return '请求频率过高，请稍后再发。'
+  }
+  if (dimension === 'token') {
+    return '本分钟 token 配额不足，请缩短输入或降低 max_tokens。'
+  }
+  return '请求过于频繁，请稍后重试。'
 }
 
 const resolveSystemPromptFromMessages = (messageList = []) => {
@@ -690,6 +758,14 @@ const sendMessage = async () => {
     return
   }
 
+  const now = Date.now()
+  if (now - lastSubmitAt.value < SEND_THROTTLE_MS) {
+    error.value = '发送过快，请稍后再试。'
+    return
+  }
+  lastSubmitAt.value = now
+
+  maxTokens.value = normalizedMaxTokens.value
   isGenerating.value = true
   if (!(await ensureAuth())) {
     isGenerating.value = false
@@ -729,6 +805,7 @@ const sendMessage = async () => {
         token: getToken(),
         model: selectedModel.value,
         messages: apiMessages,
+        max_tokens: normalizedMaxTokens.value,
         conversation_id: activeConversationId.value || undefined,
         signal: controller.signal,
         onDelta: async (delta) => {
@@ -751,6 +828,7 @@ const sendMessage = async () => {
         token: getToken(),
         model: selectedModel.value,
         messages: apiMessages,
+        max_tokens: normalizedMaxTokens.value,
         conversation_id: activeConversationId.value || undefined
       })
       assistantMessage.content = readAssistantMessage(result?.data)
@@ -779,8 +857,9 @@ const sendMessage = async () => {
     if (err?.name === 'AbortError') {
       assistantMessage.content = assistantMessage.content || '已停止生成。'
     } else {
-      assistantMessage.content = assistantMessage.content || '请求失败，请重试。'
-      error.value = err?.message || '请求失败'
+      const message = resolveChatErrorMessage(err)
+      assistantMessage.content = assistantMessage.content || message
+      error.value = message
     }
   } finally {
     abortRef.value = null

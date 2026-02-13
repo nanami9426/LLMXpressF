@@ -427,17 +427,23 @@ function buildStreamError(payload, status) {
   const info = payload?.error || {}
   const err = new Error(info.message || payload?.message || '请求失败')
   err.status = status
-  err.code = info.code ?? status
+  err.code = info.code ?? payload?.stat_code ?? status
+  if (info.type || payload?.stat) {
+    err.type = info.type || payload?.stat
+  }
+  if (info.details || payload?.err) {
+    err.details = info.details || payload?.err
+  }
   return err
 }
 
 function parseStreamErrorRaw(raw) {
   if (!raw) return {}
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return { message: raw }
+  const parsed = parsePayload(raw)
+  if (parsed && Object.keys(parsed).length > 0) {
+    return parsed
   }
+  return { message: raw }
 }
 
 export async function chatCompletionStreamApi({
