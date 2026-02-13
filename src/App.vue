@@ -49,20 +49,24 @@ const toast = reactive({
   message: ''
 })
 
-const showToast = (message) => {
+const showToast = (message, duration = 1800) => {
   if (!message) return
   toast.message = message
   toast.visible = true
   if (toastTimer) {
     window.clearTimeout(toastTimer)
   }
+  const timeoutMs = Number.isFinite(Number(duration)) ? Math.max(300, Number(duration)) : 1800
   toastTimer = window.setTimeout(() => {
     toast.visible = false
-  }, 1800)
+  }, timeoutMs)
 }
 
 const handleToast = (event) => {
-  showToast(event?.detail?.message || '登录已过期，请重新登录。')
+  showToast(
+    event?.detail?.message || '登录已过期，请重新登录。',
+    event?.detail?.duration
+  )
 }
 
 const refreshAuth = async () => {

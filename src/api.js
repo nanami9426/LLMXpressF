@@ -345,6 +345,17 @@ export async function listConversationMessagesApi(
   }
 }
 
+export async function deleteConversationApi(token, conversationId) {
+  const payload = await request(`/v1/conversations/${conversationId}`, {
+    method: 'DELETE',
+    headers: withBearerToken(token)
+  })
+
+  return {
+    message: payload?.message || ''
+  }
+}
+
 function getDeltaText(payload) {
   const choice = payload?.choices?.[0]
   if (!choice) return ''

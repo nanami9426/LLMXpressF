@@ -273,6 +273,16 @@ body {
   background: var(--primary-hover);
 }
 
+.btn.danger {
+  color: #fff;
+  background: #cf222e;
+  border-color: rgba(138, 21, 56, 0.25);
+}
+
+.btn.danger:hover {
+  background: #a40e26;
+}
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -286,6 +296,15 @@ body {
 
 .btn.ghost:hover {
   background: var(--surface-muted);
+}
+
+.btn.ghost.danger {
+  color: var(--danger);
+  border-color: rgba(207, 34, 46, 0.45);
+}
+
+.btn.ghost.danger:hover {
+  background: rgba(207, 34, 46, 0.08);
 }
 
 .btn.wide {
@@ -408,11 +427,91 @@ textarea {
   text-align: left;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px;
   background: var(--surface);
+  display: grid;
+  gap: 8px;
+}
+
+.history-item-main {
+  width: 100%;
+  text-align: left;
+  border: none;
+  padding: 2px;
+  background: transparent;
   display: grid;
   gap: 6px;
   cursor: pointer;
+}
+
+.history-item-main:disabled {
+  cursor: not-allowed;
+}
+
+.history-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.history-menu-trigger {
+  min-width: 28px;
+  min-height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.history-menu-trigger:hover {
+  border-color: var(--border-strong);
+  background: #edf1f6;
+  color: var(--text);
+}
+
+.history-menu-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.history-menu-popover {
+  position: absolute;
+  right: 34px;
+  bottom: 0;
+  min-width: 108px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+
+.history-menu-item {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.history-menu-item:hover {
+  background: var(--surface-muted);
+}
+
+.history-menu-item.danger {
+  color: var(--danger);
+}
+
+.history-menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .history-item:hover {
@@ -826,6 +925,43 @@ textarea {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.confirm-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.confirm-dialog {
+  width: min(420px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.confirm-dialog h3 {
+  font-size: 18px;
+}
+
+.confirm-dialog p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @media (max-width: 860px) {

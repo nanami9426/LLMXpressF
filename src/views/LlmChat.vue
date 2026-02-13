@@ -36,26 +36,62 @@
             暂无历史会话。
           </p>
 
-          <button
+          <div
             v-for="item in conversations"
             :key="item.conversation_id"
             class="history-item"
             :class="{
               active: normalizeConversationId(item.conversation_id) === activeConversationId,
-              loading: normalizeConversationId(item.conversation_id) === loadingConversationId
+              loading:
+                normalizeConversationId(item.conversation_id) === loadingConversationId ||
+                normalizeConversationId(item.conversation_id) === deletingConversationId
             }"
-            type="button"
-            :disabled="isGenerating"
-            @click="openConversation(item.conversation_id)"
           >
-            <p class="history-title">{{ conversationTitle(item) }}</p>
-            <p class="history-preview">{{ item.last_message_preview || '无预览内容' }}</p>
-            <div class="history-meta">
-              <span>#{{ item.conversation_id }}</span>
-              <span>{{ item.message_count || 0 }} 条</span>
-              <span>{{ formatConversationTime(item.last_message_at) }}</span>
+            <button
+              class="history-item-main"
+              type="button"
+              :disabled="
+                isGenerating ||
+                normalizeConversationId(item.conversation_id) === deletingConversationId
+              "
+              @click="openConversation(item.conversation_id)"
+            >
+              <p class="history-title">{{ conversationTitle(item) }}</p>
+              <p class="history-preview">{{ item.last_message_preview || '无预览内容' }}</p>
+              <div class="history-meta">
+                <span>#{{ item.conversation_id }}</span>
+                <span>{{ item.message_count || 0 }} 条</span>
+                <span>{{ formatConversationTime(item.last_message_at) }}</span>
+              </div>
+            </button>
+            <div class="history-item-actions">
+              <button
+                class="history-menu-trigger"
+                type="button"
+                :disabled="
+                  isGenerating ||
+                  normalizeConversationId(item.conversation_id) === deletingConversationId
+                "
+                @click.stop="toggleConversationMenu(item.conversation_id)"
+              >
+                ...
+              </button>
+              <div
+                v-if="normalizeConversationId(item.conversation_id) === actionMenuConversationId"
+                class="history-menu-popover"
+                @click.stop
+              >
+                <button
+                  class="history-menu-item danger"
+                  type="button"
+                  :disabled="normalizeConversationId(item.conversation_id) === deletingConversationId"
+                  @click="openDeleteConfirm(item)"
+                >
+                  删除会话
+                </button>
+              </div>
             </div>
-          </button>
+          </div>
         </div>
       </aside>
 
@@ -203,6 +239,45 @@
         </form>
       </div>
     </div>
+
+    <div
+      v-if="deleteConfirmTarget"
+      class="confirm-mask"
+      @click="closeDeleteConfirm"
+    >
+      <div
+        class="confirm-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="删除会话确认"
+        @click.stop
+      >
+        <h3>删除会话</h3>
+        <p>
+          确认删除
+          <strong>#{{ deleteConfirmTarget.id }}</strong>
+          吗？删除后不可恢复。
+        </p>
+        <div class="confirm-actions">
+          <button
+            class="btn ghost"
+            type="button"
+            :disabled="deletingConversationId === deleteConfirmTarget.id"
+            @click="closeDeleteConfirm"
+          >
+            取消
+          </button>
+          <button
+            class="btn danger"
+            type="button"
+            :disabled="deletingConversationId === deleteConfirmTarget.id"
+            @click="confirmDeleteConversation"
+          >
+            {{ deletingConversationId === deleteConfirmTarget.id ? '删除中...' : '确认删除' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -211,12 +286,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import {
   chatCompletionApi,
   chatCompletionStreamApi,
+  deleteConversationApi,
   listConversationMessagesApi,
   listConversationsApi,
   listModelsApi
 } from '../api'
-import { getToken, validateToken } from '../auth'
+import { getToken, logout, validateToken } from '../auth'
 import { renderMarkdown } from '../utils/markdown'
+import { useRoute, useRouter } from 'vue-router'
 
 const DEFAULT_MAX_TOKENS = 1024
 const MAX_TOKENS_MIN = 1
@@ -225,6 +302,8 @@ const SEND_THROTTLE_MS = 600
 const RATE_LIMIT_CODE = '1006'
 
 const listRef = ref(null)
+const router = useRouter()
+const route = useRoute()
 const input = ref('')
 const systemPrompt = ref('You are a helpful assistant.')
 const error = ref('')
@@ -242,6 +321,9 @@ const conversations = ref([])
 const conversationsTotal = ref(0)
 const conversationsLoading = ref(false)
 const loadingConversationId = ref('')
+const deletingConversationId = ref('')
+const actionMenuConversationId = ref('')
+const deleteConfirmTarget = ref(null)
 const activeConversationId = ref(null)
 const currentConversationTitle = ref('')
 const conversationSystemPrompt = ref('')
@@ -523,6 +605,58 @@ const scrollToBottom = () => {
   listRef.value.scrollTop = listRef.value.scrollHeight
 }
 
+const emitToast = (message, duration) => {
+  if (!message) return
+  window.dispatchEvent(new CustomEvent('llmxpress-toast', { detail: { message, duration } }))
+}
+
+const closeConversationMenu = () => {
+  actionMenuConversationId.value = ''
+}
+
+const toggleConversationMenu = (conversationId) => {
+  if (isGenerating.value) return
+  const targetId = normalizeConversationId(conversationId)
+  if (!targetId) return
+  if (deletingConversationId.value === targetId) return
+  actionMenuConversationId.value = actionMenuConversationId.value === targetId ? '' : targetId
+}
+
+const openDeleteConfirm = (item) => {
+  const targetId = normalizeConversationId(item?.conversation_id)
+  if (!targetId) return
+  closeConversationMenu()
+  deleteConfirmTarget.value = { id: targetId }
+}
+
+const closeDeleteConfirm = () => {
+  if (deletingConversationId.value) return
+  deleteConfirmTarget.value = null
+}
+
+const handleGlobalClick = (event) => {
+  const target = event?.target
+  if (!(target instanceof Element)) {
+    closeConversationMenu()
+    return
+  }
+  if (target.closest('.history-item-actions')) {
+    return
+  }
+  closeConversationMenu()
+}
+
+const handleGlobalKeydown = (event) => {
+  if (event?.key !== 'Escape') return
+
+  if (deleteConfirmTarget.value && !deletingConversationId.value) {
+    deleteConfirmTarget.value = null
+    return
+  }
+
+  closeConversationMenu()
+}
+
 const appendMessage = async (payload) => {
   messages.value.push(payload)
   await nextTick()
@@ -632,6 +766,25 @@ const reloadConversations = async ({ silent = false } = {}) => {
     conversations.value = payload.list
     conversationsTotal.value = payload.total
 
+    if (actionMenuConversationId.value) {
+      const menuTargetExists = conversations.value.some((item) => {
+        return normalizeConversationId(item?.conversation_id) === actionMenuConversationId.value
+      })
+      if (!menuTargetExists) {
+        closeConversationMenu()
+      }
+    }
+
+    const confirmTargetId = normalizeConversationId(deleteConfirmTarget.value?.id)
+    if (confirmTargetId) {
+      const confirmTargetExists = conversations.value.some((item) => {
+        return normalizeConversationId(item?.conversation_id) === confirmTargetId
+      })
+      if (!confirmTargetExists) {
+        deleteConfirmTarget.value = null
+      }
+    }
+
     if (activeConversationId.value) {
       const exists = conversations.value.some((item) => {
         return normalizeConversationId(item?.conversation_id) === activeConversationId.value
@@ -660,6 +813,7 @@ const openConversation = async (conversationId) => {
 
   const targetId = normalizeConversationId(conversationId)
   if (!targetId) return
+  closeConversationMenu()
 
   error.value = ''
   if (!(await ensureAuth())) {
@@ -701,11 +855,75 @@ const openConversation = async (conversationId) => {
 
 const startNewConversation = () => {
   if (isGenerating.value) return
+  closeConversationMenu()
+  closeDeleteConfirm()
   error.value = ''
   activeConversationId.value = null
   currentConversationTitle.value = ''
   conversationSystemPrompt.value = ''
   messages.value = []
+}
+
+const confirmDeleteConversation = async () => {
+  if (isGenerating.value) return
+
+  const targetId = normalizeConversationId(deleteConfirmTarget.value?.id)
+  if (!targetId) return
+  if (deletingConversationId.value === targetId) return
+
+  error.value = ''
+  if (!(await ensureAuth())) {
+    return
+  }
+
+  deletingConversationId.value = targetId
+  try {
+    const token = getToken()
+    await deleteConversationApi(token, targetId)
+
+    const previousLength = conversations.value.length
+    const nextConversations = conversations.value.filter((item) => {
+      return normalizeConversationId(item?.conversation_id) !== targetId
+    })
+    conversations.value = nextConversations
+    const removedCount = Math.max(0, previousLength - nextConversations.length)
+    conversationsTotal.value = Math.max(0, conversationsTotal.value - removedCount)
+
+    if (activeConversationId.value === targetId) {
+      activeConversationId.value = null
+      currentConversationTitle.value = ''
+      conversationSystemPrompt.value = ''
+      messages.value = []
+    } else {
+      syncConversationTitle()
+    }
+
+    deleteConfirmTarget.value = null
+    closeConversationMenu()
+    emitToast('删除成功', 1000)
+  } catch (err) {
+    const code = String(err?.code || '')
+    if (code === '1002') {
+      deleteConfirmTarget.value = null
+      closeConversationMenu()
+      emitToast('登录已过期，请重新登录。')
+      logout()
+      router.push({ name: 'login', query: { redirect: route.fullPath } })
+      return
+    }
+
+    if (code === '1004') {
+      deleteConfirmTarget.value = null
+      closeConversationMenu()
+      emitToast('会话已不存在')
+      await reloadConversations()
+      return
+    }
+
+    emitToast('删除失败')
+  } finally {
+    deletingConversationId.value = ''
+  }
 }
 
 const stopGeneration = () => {
@@ -878,12 +1096,16 @@ const refreshAuth = () => {
 
 onMounted(async () => {
   window.addEventListener('llmxpress-auth', refreshAuth)
+  window.addEventListener('click', handleGlobalClick)
+  window.addEventListener('keydown', handleGlobalKeydown)
   await reloadModels()
   await reloadConversations()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('llmxpress-auth', refreshAuth)
+  window.removeEventListener('click', handleGlobalClick)
+  window.removeEventListener('keydown', handleGlobalKeydown)
   stopGeneration()
 })
 </script>
