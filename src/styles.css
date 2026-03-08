@@ -252,6 +252,16 @@ body {
   font-size: 14px;
 }
 
+.panel code,
+.confirm-dialog code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.92em;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -321,6 +331,178 @@ body {
   padding: 20px;
   display: grid;
   gap: 10px;
+}
+
+.api-key-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.api-key-sidebar {
+  display: grid;
+  gap: 16px;
+}
+
+.api-key-panel {
+  padding: 18px;
+  gap: 12px;
+}
+
+.api-key-panel h2 {
+  font-size: 24px;
+}
+
+.api-key-panel h3,
+.api-key-list-panel h3 {
+  font-size: 18px;
+}
+
+.api-key-notes {
+  display: grid;
+  gap: 10px;
+}
+
+.api-key-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.api-key-list-panel {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.api-key-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.empty-state {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.api-key-list {
+  display: grid;
+  gap: 12px;
+}
+
+.api-key-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.api-key-card.revoked {
+  opacity: 0.85;
+  background: linear-gradient(180deg, #ffffff 0%, #faf4f4 100%);
+}
+
+.api-key-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.api-key-card-title {
+  display: grid;
+  gap: 4px;
+}
+
+.api-key-card-title h4 {
+  font-size: 16px;
+}
+
+.api-key-prefix {
+  color: var(--muted);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.api-key-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.api-key-status.active {
+  color: var(--success);
+  border-color: rgba(26, 127, 55, 0.35);
+  background: rgba(26, 127, 55, 0.08);
+}
+
+.api-key-status.revoked {
+  color: var(--danger);
+  border-color: rgba(207, 34, 46, 0.35);
+  background: rgba(207, 34, 46, 0.08);
+}
+
+.api-key-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.api-key-meta-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.api-key-meta-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.api-key-meta-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.api-key-meta-item strong {
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.api-key-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.api-key-dialog {
+  width: min(560px, 100%);
+}
+
+.api-key-secret-box {
+  display: grid;
+  gap: 12px;
 }
 
 .login-panel h2 {
@@ -701,6 +883,8 @@ textarea {
   max-height: 54vh;
   overflow-y: auto;
   display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--border);
@@ -722,6 +906,7 @@ textarea {
   max-width: 88%;
   justify-self: start;
   display: grid;
+  align-content: start;
   gap: 4px;
   padding: 10px 12px;
   border-radius: 10px;
@@ -729,6 +914,11 @@ textarea {
   background: var(--surface);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.bubble p {
+  margin: 0;
+  line-height: 1.55;
 }
 
 .bubble.me,
@@ -970,6 +1160,10 @@ textarea {
     align-items: flex-start;
   }
 
+  .nav {
+    flex-wrap: wrap;
+  }
+
   .auth {
     width: 100%;
     justify-content: flex-start;
@@ -985,8 +1179,13 @@ textarea {
     width: 100%;
   }
 
+  .api-key-layout,
   .llm-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .api-key-list-head {
+    flex-direction: column;
   }
 
   .history-list {
@@ -1005,5 +1204,25 @@ textarea {
 
   .chat-body {
     max-height: 46vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar,
+  .main {
+    padding-left: 4vw;
+    padding-right: 4vw;
+  }
+
+  .api-key-card-head {
+    flex-direction: column;
+  }
+
+  .api-key-card-actions {
+    justify-content: stretch;
+  }
+
+  .api-key-card-actions .btn {
+    width: 100%;
   }
 }

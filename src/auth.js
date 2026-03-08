@@ -5,9 +5,9 @@ const USER_KEY = 'llmxpress_user'
 const USER_ID_KEY = 'llmxpress_user_id'
 const VERSION_KEY = 'llmxpress_token_version'
 
-const emitToast = (message) => {
+export function emitToast(message, duration) {
   if (!message) return
-  window.dispatchEvent(new CustomEvent('llmxpress-toast', { detail: { message } }))
+  window.dispatchEvent(new CustomEvent('llmxpress-toast', { detail: { message, duration } }))
 }
 
 export function hasToken() {

@@ -3,6 +3,7 @@ import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Chat from '../views/Chat.vue'
 import LlmChat from '../views/LlmChat.vue'
+import ApiKeys from '../views/ApiKeys.vue'
 import { validateToken } from '../auth'
 
 const router = createRouter({
@@ -21,6 +22,12 @@ const router = createRouter({
       alias: '/llm',
       name: 'console',
       component: LlmChat,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/api-keys',
+      name: 'api-keys',
+      component: ApiKeys,
       meta: { requiresAuth: true }
     },
     { path: '/:pathMatch(.*)*', redirect: '/' }

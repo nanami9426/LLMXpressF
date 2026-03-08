@@ -13,6 +13,7 @@
         <RouterLink to="/" class="nav-link">主页</RouterLink>
         <RouterLink to="/chat" class="nav-link">私聊</RouterLink>
         <RouterLink to="/console" class="nav-link">控制台</RouterLink>
+        <RouterLink to="/api-keys" class="nav-link">API Key</RouterLink>
       </nav>
       <div class="auth">
         <template v-if="authed">

@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 const WS_BASE = import.meta.env.VITE_WS_BASE || 'ws://localhost:5000'
-const LARGE_INT_KEYS = new Set(['conversation_id', 'message_id'])
+const LARGE_INT_KEYS = new Set(['conversation_id', 'message_id', 'api_key_id'])
 
 function joinUrl(base, path) {
   if (base.endsWith('/') && path.startsWith('/')) {
@@ -134,14 +134,17 @@ function parsePayload(raw) {
   }
 }
 
-async function request(path, { method = 'GET', body, headers, includeHeaders = false } = {}) {
+async function request(
+  path,
+  { method = 'GET', body, rawBody, headers, includeHeaders = false } = {}
+) {
   const res = await fetch(joinUrl(API_BASE, path), {
     method,
     headers: {
       'Content-Type': 'application/json',
       ...headers
     },
-    body: body ? JSON.stringify(body) : undefined
+    body: rawBody ?? (body !== undefined ? JSON.stringify(body) : undefined)
   })
 
   const raw = await res.text().catch(() => '')
@@ -207,6 +210,22 @@ function withBearerToken(token, headers = {}) {
   }
 }
 
+function normalizeIntegerBodyValue(value) {
+  if (typeof value === 'number' && Number.isSafeInteger(value)) {
+    return String(value)
+  }
+
+  const raw = String(value ?? '').trim()
+  if (/^\d+$/.test(raw)) {
+    return raw
+  }
+
+  const err = new Error('缺少有效的 API Key ID。')
+  err.status = 400
+  err.code = 400
+  throw err
+}
+
 export async function loginApi(payload) {
   const data = await request('/user/user_login', {
     method: 'POST',
@@ -236,6 +255,32 @@ export async function checkTokenApi(token) {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined
   })
   return data
+}
+
+export async function createApiKeyApi(token, payload) {
+  return request('/user/create_api_key', {
+    method: 'POST',
+    headers: withBearerToken(token),
+    body: payload
+  })
+}
+
+export async function listApiKeysApi(token) {
+  const data = await request('/user/api_key_list', {
+    method: 'POST',
+    headers: withBearerToken(token),
+    body: {}
+  })
+
+  return Array.isArray(data?.list) ? data.list : []
+}
+
+export async function revokeApiKeyApi(token, apiKeyId) {
+  return request('/user/revoke_api_key', {
+    method: 'POST',
+    headers: withBearerToken(token),
+    rawBody: `{"api_key_id":${normalizeIntegerBodyValue(apiKeyId)}}`
+  })
 }
 
 export async function listModelsApi(token) {

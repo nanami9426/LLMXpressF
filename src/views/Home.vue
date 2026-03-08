@@ -8,6 +8,7 @@
         <div class="hero-actions">
           <RouterLink v-if="authed" to="/console" class="btn">进入控制台</RouterLink>
           <RouterLink v-else to="/login" class="btn">登录</RouterLink>
+          <RouterLink v-if="authed" to="/api-keys" class="btn ghost">管理 API Key</RouterLink>
           <RouterLink to="/console" class="btn ghost">网关会话</RouterLink>
         </div>
       </div>
@@ -43,6 +44,10 @@
       <div class="panel">
         <h3>流式响应</h3>
         <p>支持流式输出与会话上下文调试。</p>
+      </div>
+      <div class="panel">
+        <h3>API Key 管理</h3>
+        <p>支持创建、查看前缀列表与吊销用户级 API Key。</p>
       </div>
     </div>
   </section>
